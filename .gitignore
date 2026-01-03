@@ -1,22 +1,22 @@
-# ===== Python =====
+# Python
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
 *.egg-info/
 
-# ===== Virtual Env =====
-venv/
+# Env
 .env
+venv/
 
-# ===== Audio files =====
+# Audio
 *.mp3
 *.wav
 *.ogg
 
-# ===== OS =====
+# OS
 .DS_Store
 Thumbs.db
 
-# ===== Logs =====
+# Logs
 *.log

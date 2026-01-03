@@ -3,11 +3,14 @@ from discord.ext import commands
 from gtts import gTTS
 from langdetect import detect
 from dotenv import load_dotenv
-import asyncio, os, re
+import asyncio
+import os
+import re
 
 # ===== LOAD ENV =====
 load_dotenv()
 DISCORD_BOT_TOKEN = os.getenv("DISCORD_BOT_TOKEN")
+
 if not DISCORD_BOT_TOKEN:
     raise ValueError("❌ DISCORD_BOT_TOKEN not found")
 
@@ -53,11 +56,10 @@ def detect_tts_lang(text: str):
         return "en"
     elif lang == "th":
         return "th"
-    else:
-        return "th"
+    return "th"
 
 
-def tts_generate(text: str, filename="voice.mp3"):
+def generate_tts(text: str, filename="voice.mp3"):
     lang = detect_tts_lang(text)
     tts = gTTS(text=text, lang=lang, slow=slow_voice)
     tts.save(filename)
@@ -75,9 +77,14 @@ async def play_queue(vc: discord.VoiceClient):
         text = await audio_queue.get()
         filename = "voice.mp3"
 
-        tts_generate(text, filename)
+        generate_tts(text, filename)
 
-        vc.play(discord.FFmpegPCMAudio(filename))
+        vc.play(
+            discord.FFmpegPCMAudio(
+                source=filename,
+                options="-loglevel panic"
+            )
+        )
 
         while vc.is_playing():
             await asyncio.sleep(0.3)
