@@ -1,22 +1,9 @@
-# Python
 __pycache__/
 *.pyc
-*.pyo
-*.pyd
-*.egg-info/
-
-# Env
 .env
 venv/
-
-# Audio
 *.mp3
 *.wav
 *.ogg
-
-# OS
 .DS_Store
 Thumbs.db
-
-# Logs
-*.log

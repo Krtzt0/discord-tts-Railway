@@ -6,13 +6,21 @@ from dotenv import load_dotenv
 import asyncio
 import os
 import re
+import shutil
 
 # ===== LOAD ENV =====
 load_dotenv()
 DISCORD_BOT_TOKEN = os.getenv("DISCORD_BOT_TOKEN")
 
 if not DISCORD_BOT_TOKEN:
-    raise ValueError("❌ DISCORD_BOT_TOKEN not found")
+    raise RuntimeError("❌ DISCORD_BOT_TOKEN not found")
+
+# ===== FFMPEG =====
+FFMPEG_PATH = shutil.which("ffmpeg")
+print("FFMPEG PATH:", FFMPEG_PATH)
+
+if not FFMPEG_PATH:
+    raise RuntimeError("❌ ffmpeg not found in system")
 
 # ===== CONFIG =====
 MAX_LEN = 180
@@ -82,6 +90,7 @@ async def play_queue(vc: discord.VoiceClient):
         vc.play(
             discord.FFmpegPCMAudio(
                 source=filename,
+                executable=FFMPEG_PATH,
                 options="-loglevel panic"
             )
         )
