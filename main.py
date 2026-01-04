@@ -74,16 +74,13 @@ def detect_lang(text):
 def tts(text):
     gTTS(text=text, lang=detect_lang(text)).save("base.mp3")
 
-    # ===== VOICE MODE =====
     if voice_mode == "chipmunk":
-        # เสียงน้อน (แหลม)
         subprocess.run([
             "ffmpeg", "-y", "-i", "base.mp3",
-            "-filter:a", "asetrate=44100*1.25,atempo=1.0",
+            "-filter:a", "asetrate=44100*1.25,atempo=0.85",
             "voice.mp3"
         ])
     else:
-        # เสียงสิริ (ปกติ)
         subprocess.run([
             "ffmpeg", "-y", "-i", "base.mp3",
             "voice.mp3"
@@ -111,40 +108,44 @@ async def play_queue(vc):
     is_playing = False
 
 # ===== CONTROL PANEL UI =====
+
+def voice_label():
+    return "🟣 เสียงสิริ" if voice_mode == "female" else "🐿 เสียงน้อน"
+
 class ControlPanel(ui.View):
     def __init__(self):
         super().__init__(timeout=None)
+
+    async def update_panel(self, interaction: Interaction):
+        await interaction.message.edit(
+            content=f"🎛️ **ปุ่มควบคุมน้องหริ**\n🎤 เสียงปัจจุบัน: **{voice_label()}**",
+            view=self
+        )
 
     @ui.button(label="เสียงสิริ", style=discord.ButtonStyle.secondary, emoji="🟣")
     async def female(self, interaction: Interaction, button: ui.Button):
         global voice_mode
         voice_mode = "female"
-        await interaction.response.send_message(
-            "🟣 เปลี่ยนเป็น **เสียงสิริ** แล้ว",
-            ephemeral=True
-        )
+        await interaction.response.defer()
+        await self.update_panel(interaction)
 
     @ui.button(label="เสียงน้อน", style=discord.ButtonStyle.success, emoji="🐿")
     async def chip(self, interaction: Interaction, button: ui.Button):
         global voice_mode
         voice_mode = "chipmunk"
-        await interaction.response.send_message(
-            "🐿 เปลี่ยนเป็น **เสียงน้อน** แล้ว",
-            ephemeral=True
-        )
+        await interaction.response.defer()
+        await self.update_panel(interaction)
 
     @ui.button(label="Join", style=discord.ButtonStyle.success, emoji="🔊", row=1)
     async def join(self, interaction: Interaction, button: ui.Button):
         if interaction.user.voice:
             await interaction.user.voice.channel.connect()
             await interaction.response.send_message(
-                "🔊 เข้าห้องเสียงแล้ว",
-                ephemeral=True
+                "🔊 เข้าห้องเสียงแล้ว", ephemeral=True
             )
         else:
             await interaction.response.send_message(
-                "❌ คุณยังไม่อยู่ในห้องเสียง",
-                ephemeral=True
+                "❌ คุณยังไม่อยู่ในห้องเสียง", ephemeral=True
             )
 
     @ui.button(label="Leave", style=discord.ButtonStyle.danger, emoji="🚪", row=1)
@@ -152,8 +153,7 @@ class ControlPanel(ui.View):
         if interaction.guild.voice_client:
             await interaction.guild.voice_client.disconnect()
         await interaction.response.send_message(
-            "🚪 ออกจากห้องเสียงแล้ว",
-            ephemeral=True
+            "🚪 ออกจากห้องเสียงแล้ว", ephemeral=True
         )
 
 # ===== COMMANDS =====
@@ -166,9 +166,10 @@ async def setchat(ctx):
 @bot.command()
 async def panel(ctx):
     await ctx.send(
-        "🎛️ **ปุ่มควบคุมน้องหริ**\nเลือกเสียงและควบคุมบอทได้จากปุ่มด้านล่าง",
+        f"🎛️ **ปุ่มควบคุมน้องหริ**\n🎤 เสียงปัจจุบัน: **{voice_label()}**",
         view=ControlPanel()
     )
+
 
 # ===== EVENTS =====
 @bot.event
