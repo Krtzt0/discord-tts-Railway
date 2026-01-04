@@ -4,6 +4,7 @@ from gtts import gTTS
 from langdetect import detect
 from dotenv import load_dotenv
 import asyncio, os, re, subprocess
+from discord import ui, Interaction
 
 # ===== ENV =====
 load_dotenv()
@@ -80,7 +81,7 @@ def tts(text):
     gTTS(text=text, lang=detect_lang(text)).save("base.mp3")
 
     # ปรับเสียงด้วย ffmpeg
-    if voice_mode == "male":
+    if voice_mode == "chipmunk":
         # pitch ต่ำ = เสียงผู้ชาย
         subprocess.run([
             "ffmpeg", "-y", "-i", "base.mp3",
@@ -115,6 +116,44 @@ async def play_queue(vc):
 
     is_playing = False
 
+# ====panel ui ======
+class ControlPanel(ui.View):
+    def __init__(self):
+        super().__init__(timeout=None)
+
+
+    @ui.button(label="Female", style=discord.ButtonStyle.secondary, emoji="🟣")
+    async def female(self, interaction: Interaction, button: ui.Button):
+        global voice_mode
+        voice_mode = "female"
+        await interaction.response.send_message(
+            "🟣 เปลี่ยนเป็นเสียงผู้หญิงแล้ว", ephemeral=True
+        )
+
+    @ui.button(label="chipmunk", style=discord.ButtonStyle.success, emoji="🐿")
+    async def chip(self, interaction: Interaction, button: ui.Button):
+        global voice_mode
+        voice_mode = "chipmunk"
+        await interaction.response.send_message(
+            "🐿 เปลี่ยนเป็นเสียงชิปมังก์แล้ว", ephemeral=True
+        )
+
+    @ui.button(label="Join", style=discord.ButtonStyle.success, emoji="🔊")
+    async def join(self, interaction: Interaction, button: ui.Button):
+        if interaction.user.voice:
+            await interaction.user.voice.channel.connect()
+            await interaction.response.send_message("🔊 เข้าห้องเสียงแล้ว", ephemeral=True)
+        else:
+            await interaction.response.send_message("❌ คุณยังไม่อยู่ในห้องเสียง", ephemeral=True)
+
+    @ui.button(label="Leave", style=discord.ButtonStyle.danger, emoji="🚪")
+    async def leave(self, interaction: Interaction, button: ui.Button):
+        if interaction.guild.voice_client:
+            await interaction.guild.voice_client.disconnect()
+        await interaction.response.send_message("🚪 ออกจากห้องเสียงแล้ว", ephemeral=True)
+# ===== INIT PANEL =====
+
+
 # ===== COMMANDS =====
 @bot.command()
 async def join(ctx):
@@ -148,6 +187,14 @@ async def female(ctx):
     global voice_mode
     voice_mode = "female"
     await ctx.send("🟣 เปลี่ยนเป็นเสียงผู้หญิง (ค้างค่า)")
+
+@bot.command()
+async def panel(ctx):
+    await ctx.send(
+        "🎛️ **TTS Control Panel**",
+        view=ControlPanel()
+    )
+
 
 # ===== EVENTS =====
 @bot.event
