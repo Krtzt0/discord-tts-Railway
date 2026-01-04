@@ -77,7 +77,7 @@ def tts(text):
     if voice_mode == "chipmunk":
         subprocess.run([
             "ffmpeg", "-y", "-i", "base.mp3",
-            "-filter:a", "asetrate=44100*1.25,atempo=0.85",
+            "-filter:a", "asetrate=44100*0.95,atempo=0.85",
             "voice.mp3"
         ])
     else:
