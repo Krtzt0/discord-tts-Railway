@@ -17,7 +17,7 @@ MAX_LEN = 180
 allowed_text_channel_id = None
 auto_read = True
 
-voice_mode = "female"  # female | male
+voice_mode = "female"  # female | chipmunk
 audio_queue = asyncio.Queue()
 is_playing = False
 
@@ -28,6 +28,7 @@ intents.voice_states = True
 
 bot = commands.Bot(command_prefix="!", intents=intents)
 
+# ===== THAI DIGITS =====
 THAI_DIGITS = {
     "0": "ศูนย์",
     "1": "หนึ่ง",
@@ -38,30 +39,24 @@ THAI_DIGITS = {
     "6": "หก",
     "7": "เจ็ด",
     "8": "แปด",
-    "9": "เก้า",
-    "10": "สิบ"
+    "9": "เก้า"
 }
 
 # ===== UTILS =====
 def clean_text(text):
     text = text.strip()
 
-    # ไม่อ่านคำสั่ง
     if text.startswith("!"):
         return None
 
-    # กรณีเป็นตัวเลขล้วน
     if text.isdigit():
-        # จำกัดความยาว
         text = text[:MAX_LEN]
         return " ".join(THAI_DIGITS.get(ch, ch) for ch in text)
 
-    # กรณีเป็นข้อความทั่วไป
     if not re.search(r"[ก-๙a-zA-Z\u4e00-\u9fff]", text):
         return None
 
     return text[:MAX_LEN]
-
 
 
 def detect_lang(text):
@@ -77,19 +72,18 @@ def detect_lang(text):
 
 
 def tts(text):
-    # สร้างเสียงพื้นฐาน
     gTTS(text=text, lang=detect_lang(text)).save("base.mp3")
 
-    # ปรับเสียงด้วย ffmpeg
+    # ===== VOICE MODE =====
     if voice_mode == "chipmunk":
-        # pitch ต่ำ = เสียงผู้ชาย
+        # เสียงน้อน (แหลม)
         subprocess.run([
             "ffmpeg", "-y", "-i", "base.mp3",
-            "-filter:a", "asetrate=44100*0.88,atempo=1.0",
+            "-filter:a", "asetrate=44100*1.25,atempo=1.0",
             "voice.mp3"
         ])
     else:
-        # เสียงผู้หญิง (ปกติ)
+        # เสียงสิริ (ปกติ)
         subprocess.run([
             "ffmpeg", "-y", "-i", "base.mp3",
             "voice.mp3"
@@ -116,85 +110,65 @@ async def play_queue(vc):
 
     is_playing = False
 
-# ====panel ui ======
+# ===== CONTROL PANEL UI =====
 class ControlPanel(ui.View):
     def __init__(self):
         super().__init__(timeout=None)
 
-
-    @ui.button(label="Female", style=discord.ButtonStyle.secondary, emoji="🟣")
+    @ui.button(label="เสียงสิริ", style=discord.ButtonStyle.secondary, emoji="🟣")
     async def female(self, interaction: Interaction, button: ui.Button):
         global voice_mode
         voice_mode = "female"
         await interaction.response.send_message(
-            "🟣 เปลี่ยนเป็นเสียงผู้หญิงแล้ว", ephemeral=True
+            "🟣 เปลี่ยนเป็น **เสียงสิริ** แล้ว",
+            ephemeral=True
         )
 
-    @ui.button(label="chipmunk", style=discord.ButtonStyle.success, emoji="🐿")
+    @ui.button(label="เสียงน้อน", style=discord.ButtonStyle.success, emoji="🐿")
     async def chip(self, interaction: Interaction, button: ui.Button):
         global voice_mode
         voice_mode = "chipmunk"
         await interaction.response.send_message(
-            "🐿 เปลี่ยนเป็นเสียงชิปมังก์แล้ว", ephemeral=True
+            "🐿 เปลี่ยนเป็น **เสียงน้อน** แล้ว",
+            ephemeral=True
         )
 
-    @ui.button(label="Join", style=discord.ButtonStyle.success, emoji="🔊")
+    @ui.button(label="Join", style=discord.ButtonStyle.success, emoji="🔊", row=1)
     async def join(self, interaction: Interaction, button: ui.Button):
         if interaction.user.voice:
             await interaction.user.voice.channel.connect()
-            await interaction.response.send_message("🔊 เข้าห้องเสียงแล้ว", ephemeral=True)
+            await interaction.response.send_message(
+                "🔊 เข้าห้องเสียงแล้ว",
+                ephemeral=True
+            )
         else:
-            await interaction.response.send_message("❌ คุณยังไม่อยู่ในห้องเสียง", ephemeral=True)
+            await interaction.response.send_message(
+                "❌ คุณยังไม่อยู่ในห้องเสียง",
+                ephemeral=True
+            )
 
-    @ui.button(label="Leave", style=discord.ButtonStyle.danger, emoji="🚪")
+    @ui.button(label="Leave", style=discord.ButtonStyle.danger, emoji="🚪", row=1)
     async def leave(self, interaction: Interaction, button: ui.Button):
         if interaction.guild.voice_client:
             await interaction.guild.voice_client.disconnect()
-        await interaction.response.send_message("🚪 ออกจากห้องเสียงแล้ว", ephemeral=True)
-# ===== INIT PANEL =====
-
+        await interaction.response.send_message(
+            "🚪 ออกจากห้องเสียงแล้ว",
+            ephemeral=True
+        )
 
 # ===== COMMANDS =====
-@bot.command()
-async def join(ctx):
-    if ctx.author.voice:
-        await ctx.author.voice.channel.connect()
-        await ctx.send("🔊 Joined voice")
-
-
-@bot.command()
-async def leave(ctx):
-    if ctx.voice_client:
-        await ctx.voice_client.disconnect()
-
-
 @bot.command()
 async def setchat(ctx):
     global allowed_text_channel_id
     allowed_text_channel_id = ctx.channel.id
     await ctx.send("✅ ตั้งห้องอ่านเสียงแล้ว")
 
-
-@bot.command()
-async def male(ctx):
-    global voice_mode
-    voice_mode = "male"
-    await ctx.send("🔵 เปลี่ยนเป็นเสียงผู้ชาย (ค้างค่า)")
-
-
-@bot.command()
-async def female(ctx):
-    global voice_mode
-    voice_mode = "female"
-    await ctx.send("🟣 เปลี่ยนเป็นเสียงผู้หญิง (ค้างค่า)")
-
 @bot.command()
 async def panel(ctx):
     await ctx.send(
-        "🎛️ **TTS Control Panel**",
+        "🎛️ **ปุ่มควบคุมน้องหริ**\nเลือกเสียงและควบคุมบอทได้จากปุ่มด้านล่าง",
         view=ControlPanel()
     )
-
 
 # ===== EVENTS =====
 @bot.event
@@ -219,5 +193,10 @@ async def on_message(msg):
 
     await audio_queue.put(text)
     await play_queue(vc)
+
+@bot.event
+async def on_ready():
+    bot.add_view(ControlPanel())
+    print("✅ Bot ready + Control Panel persistent")
 
 bot.run(TOKEN)
