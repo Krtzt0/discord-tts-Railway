@@ -17,7 +17,7 @@ MAX_LEN = 180
 allowed_text_channel_id = None
 auto_read = True
 
-voice_mode = "female"  # female | chipmunk
+voice_mode = "female"  # female | chipmunk | drunk
 audio_queue = asyncio.Queue()
 is_playing = False
 
@@ -25,69 +25,48 @@ is_playing = False
 intents = discord.Intents.default()
 intents.message_content = True
 intents.voice_states = True
-
 bot = commands.Bot(command_prefix="!", intents=intents)
 
 # ===== THAI DIGITS =====
 THAI_DIGITS = {
-    "0": "ศูนย์",
-    "1": "หนึ่ง",
-    "2": "สอง",
-    "3": "สาม",
-    "4": "สี่",
-    "5": "ห้า",
-    "6": "หก",
-    "7": "เจ็ด",
-    "8": "แปด",
-    "9": "เก้า"
+    "0": "ศูนย์","1": "หนึ่ง","2": "สอง","3": "สาม","4": "สี่",
+    "5": "ห้า","6": "หก","7": "เจ็ด","8": "แปด","9": "เก้า"
 }
 
 # ===== UTILS =====
 def clean_text(text):
     text = text.strip()
-
     if text.startswith("!"):
         return None
-
     if text.isdigit():
-        text = text[:MAX_LEN]
-        return " ".join(THAI_DIGITS.get(ch, ch) for ch in text)
-
+        return " ".join(THAI_DIGITS.get(ch, ch) for ch in text[:MAX_LEN])
     if not re.search(r"[ก-๙a-zA-Z\u4e00-\u9fff]", text):
         return None
-
     return text[:MAX_LEN]
-
 
 def detect_lang(text):
     try:
         lang = detect(text)
     except:
         return "th"
-    if lang.startswith("zh"):
-        return "zh-CN"
-    if lang == "en":
-        return "en"
-    return "th"
-
+    return "zh-CN" if lang.startswith("zh") else lang if lang in ["th","en"] else "th"
 
 def tts(text):
     gTTS(text=text, lang=detect_lang(text)).save("base.mp3")
 
     if voice_mode == "chipmunk":
-        subprocess.run([
-            "ffmpeg", "-y", "-i", "base.mp3",
-            "-filter:a", "asetrate=44100*0.95,atempo=0.7",
-            "voice.mp3"
-        ])
+        filter_audio = "asetrate=44100*0.8,atempo=0.5"
+    elif voice_mode == "drunk":
+        filter_audio = "asetrate=44100*0.97,atempo=0.75"
     else:
-        subprocess.run([
-            "ffmpeg", "-y", "-i", "base.mp3",
-            "voice.mp3"
-        ])
+        filter_audio = None
+
+    if filter_audio:
+        subprocess.run(["ffmpeg","-y","-i","base.mp3","-filter:a",filter_audio,"voice.mp3"])
+    else:
+        subprocess.run(["ffmpeg","-y","-i","base.mp3","voice.mp3"])
 
     os.remove("base.mp3")
-
 
 async def play_queue(vc):
     global is_playing
@@ -98,63 +77,63 @@ async def play_queue(vc):
     while not audio_queue.empty():
         text = await audio_queue.get()
         tts(text)
-
         vc.play(discord.FFmpegPCMAudio("voice.mp3"))
         while vc.is_playing():
             await asyncio.sleep(0.3)
-
         os.remove("voice.mp3")
 
     is_playing = False
 
-# ===== CONTROL PANEL UI =====
-
+# ===== PANEL =====
 def voice_label():
-    return "🟣 เสียงสิริ" if voice_mode == "female" else "🐿 เสียงน้อน"
+    return {
+        "female": "🟣 เสียงสิริ",
+        "chipmunk": "🐿 เสียงน้อน",
+        "drunk": "🥴 เสียงเมา"
+    }[voice_mode]
 
 class ControlPanel(ui.View):
     def __init__(self):
         super().__init__(timeout=None)
 
-    async def update_panel(self, interaction: Interaction):
+    async def update(self, interaction):
         await interaction.message.edit(
             content=f"🎛️ **ปุ่มควบคุมน้องหริ**\n🎤 เสียงปัจจุบัน: **{voice_label()}**",
             view=self
         )
 
-    @ui.button(label="เสียงสิริ", style=discord.ButtonStyle.secondary, emoji="🟣")
-    async def female(self, interaction: Interaction, button: ui.Button):
+    @ui.button(label="สิริ", emoji="🟣", style=discord.ButtonStyle.secondary, custom_id="female")
+    async def female(self, i: Interaction, b: ui.Button):
         global voice_mode
         voice_mode = "female"
-        await interaction.response.defer()
-        await self.update_panel(interaction)
+        await i.response.defer()
+        await self.update(i)
 
-    @ui.button(label="เสียงน้อน", style=discord.ButtonStyle.success, emoji="🐿")
-    async def chip(self, interaction: Interaction, button: ui.Button):
+    @ui.button(label="น้อน", emoji="🐿", style=discord.ButtonStyle.success, custom_id="chip")
+    async def chip(self, i: Interaction, b: ui.Button):
         global voice_mode
         voice_mode = "chipmunk"
-        await interaction.response.defer()
-        await self.update_panel(interaction)
+        await i.response.defer()
+        await self.update(i)
 
-    @ui.button(label="Join", style=discord.ButtonStyle.success, emoji="🔊", row=1)
-    async def join(self, interaction: Interaction, button: ui.Button):
-        if interaction.user.voice:
-            await interaction.user.voice.channel.connect()
-            await interaction.response.send_message(
-                "🔊 เข้าห้องเสียงแล้ว", ephemeral=True
-            )
-        else:
-            await interaction.response.send_message(
-                "❌ คุณยังไม่อยู่ในห้องเสียง", ephemeral=True
-            )
+    @ui.button(label="เมา", emoji="🥴", style=discord.ButtonStyle.primary, custom_id="drunk")
+    async def drunk(self, i: Interaction, b: ui.Button):
+        global voice_mode
+        voice_mode = "drunk"
+        await i.response.defer()
+        await self.update(i)
 
-    @ui.button(label="Leave", style=discord.ButtonStyle.danger, emoji="🚪", row=1)
-    async def leave(self, interaction: Interaction, button: ui.Button):
-        if interaction.guild.voice_client:
-            await interaction.guild.voice_client.disconnect()
-        await interaction.response.send_message(
-            "🚪 ออกจากห้องเสียงแล้ว", ephemeral=True
-        )
+    @ui.button(label="Join", emoji="🔊", row=1, custom_id="join")
+    async def join(self, i: Interaction, b: ui.Button):
+        if i.user.voice:
+            await i.user.voice.channel.connect()
+        await i.response.send_message("🔊 เข้าห้องเสียงแล้ว", ephemeral=True)
+
+    @ui.button(label="Leave", emoji="🚪", style=discord.ButtonStyle.danger, row=1, custom_id="leave")
+    async def leave(self, i: Interaction, b: ui.Button):
+        if i.guild.voice_client:
+            await i.guild.voice_client.disconnect()
+        await i.response.send_message("🚪 ออกจากห้องเสียงแล้ว", ephemeral=True)
 
 # ===== COMMANDS =====
 @bot.command()
@@ -170,34 +149,26 @@ async def panel(ctx):
         view=ControlPanel()
     )
 
-
 # ===== EVENTS =====
 @bot.event
 async def on_message(msg):
     if msg.author.bot:
         return
-
     await bot.process_commands(msg)
-
-    if not auto_read:
-        return
     if msg.channel.id != allowed_text_channel_id:
         return
-
     vc = msg.guild.voice_client
     if not vc:
         return
-
     text = clean_text(msg.content)
     if not text:
         return
-
     await audio_queue.put(text)
     await play_queue(vc)
 
 @bot.event
 async def on_ready():
     bot.add_view(ControlPanel())
-    print("✅ Bot ready + Control Panel persistent")
+    print("✅ Bot ready + panel + drunk voice")
 
 bot.run(TOKEN)
