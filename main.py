@@ -55,9 +55,9 @@ def tts(text):
     gTTS(text=text, lang=detect_lang(text)).save("base.mp3")
 
     if voice_mode == "chipmunk":
-        filter_audio = "asetrate=44100*0.8,atempo=0.5"
+        filter_audio = "asetrate=44100*0.8,atempo=0.8"
     elif voice_mode == "drunk":
-        filter_audio = "asetrate=44100*0.97,atempo=0.75"
+        filter_audio = "asetrate=44100*1.0,atempo=0.5"
     else:
         filter_audio = None
 
