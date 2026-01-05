@@ -57,7 +57,7 @@ def tts(text):
     if voice_mode == "chipmunk":
         filter_audio = "asetrate=44100*0.8,atempo=0.8"
     elif voice_mode == "drunk":
-        filter_audio = "asetrate=44100*1.0,atempo=0.5"
+        filter_audio = "atempo=0.7"
     else:
         filter_audio = None
 
