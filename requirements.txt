@@ -1,5 +1,5 @@
-discord.py>=2.3
+discord.py>=2.4.0
+edge-tts
 python-dotenv
 langdetect
-edge-tts
-PyNaCl
+pynacl
