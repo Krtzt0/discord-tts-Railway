@@ -84,59 +84,6 @@ async def play_queue(vc):
 
     is_playing = False
 
-# ===== CONTROL PANEL =====
-class ControlPanel(ui.View):
-    def __init__(self):
-        super().__init__(timeout=None)
-
-    @ui.button(
-        label="สิริ",
-        emoji="🟣",
-        style=discord.ButtonStyle.secondary,
-        custom_id="voice_female"
-    )
-    async def female(self, interaction: Interaction, button: ui.Button):
-        ...
-
-    @ui.button(
-        label="น้อน",
-        emoji="🐿",
-        style=discord.ButtonStyle.success,
-        custom_id="voice_chipmunk"
-    )
-    async def chip(self, interaction: Interaction, button: ui.Button):
-        ...
-
-    @ui.button(
-        label="เมา",
-        emoji="🥴",
-        style=discord.ButtonStyle.primary,
-        custom_id="voice_drunk"
-    )
-    async def drunk(self, interaction: Interaction, button: ui.Button):
-        ...
-
-    @ui.button(
-        label="Join",
-        emoji="🔊",
-        style=discord.ButtonStyle.success,
-        row=1,
-        custom_id="vc_join"
-    )
-    async def join(self, interaction: Interaction, button: ui.Button):
-        ...
-
-    @ui.button(
-        label="Leave",
-        emoji="🚪",
-        style=discord.ButtonStyle.danger,
-        row=1,
-        custom_id="vc_leave"
-    )
-    async def leave(self, interaction: Interaction, button: ui.Button):
-        ...
-
-
 # ===== EMBED =====
 def panel_embed():
     embed = discord.Embed(
@@ -144,8 +91,62 @@ def panel_embed():
         description=f"🎤 เสียงปัจจุบัน: **{voice_label()}**",
         color=0x8E44AD
     )
-    embed.add_field(name="🗣 โหมดเสียง", value="สิริ / เมา / น้อน / ชาย", inline=False)
+    embed.add_field(
+        name="🗣 โหมดเสียง",
+        value="🟣 สิริ | 🥴 เมา | 🐿 น้อน | 🔵 ชาย",
+        inline=False
+    )
     return embed
+
+# ===== CONTROL PANEL =====
+class ControlPanel(ui.View):
+    def __init__(self):
+        super().__init__(timeout=None)
+
+    async def refresh(self, interaction: Interaction):
+        await interaction.message.edit(embed=panel_embed(), view=self)
+
+    @ui.button(label="สิริ", emoji="🟣", style=discord.ButtonStyle.secondary, custom_id="voice_female")
+    async def female(self, interaction: Interaction, button: ui.Button):
+        global voice_mode
+        voice_mode = "female"
+        await interaction.response.defer()
+        await self.refresh(interaction)
+
+    @ui.button(label="น้อน", emoji="🐿", style=discord.ButtonStyle.success, custom_id="voice_chip")
+    async def chip(self, interaction: Interaction, button: ui.Button):
+        global voice_mode
+        voice_mode = "chip"
+        await interaction.response.defer()
+        await self.refresh(interaction)
+
+    @ui.button(label="เมา", emoji="🥴", style=discord.ButtonStyle.primary, custom_id="voice_drunk")
+    async def drunk(self, interaction: Interaction, button: ui.Button):
+        global voice_mode
+        voice_mode = "drunk"
+        await interaction.response.defer()
+        await self.refresh(interaction)
+
+    @ui.button(label="ชาย", emoji="🔵", style=discord.ButtonStyle.secondary, custom_id="voice_male")
+    async def male(self, interaction: Interaction, button: ui.Button):
+        global voice_mode
+        voice_mode = "male"
+        await interaction.response.defer()
+        await self.refresh(interaction)
+
+    @ui.button(label="Join", emoji="🔊", style=discord.ButtonStyle.success, row=1, custom_id="vc_join")
+    async def join(self, interaction: Interaction, button: ui.Button):
+        if interaction.user.voice:
+            await interaction.user.voice.channel.connect()
+            await interaction.response.send_message("🔊 เข้าห้องเสียงแล้ว", ephemeral=True)
+        else:
+            await interaction.response.send_message("❌ คุณยังไม่อยู่ในห้องเสียง", ephemeral=True)
+
+    @ui.button(label="Leave", emoji="🚪", style=discord.ButtonStyle.danger, row=1, custom_id="vc_leave")
+    async def leave(self, interaction: Interaction, button: ui.Button):
+        if interaction.guild.voice_client:
+            await interaction.guild.voice_client.disconnect()
+        await interaction.response.send_message("🚪 ออกจากห้องเสียงแล้ว", ephemeral=True)
 
 # ===== COMMANDS =====
 @bot.command()
@@ -189,6 +190,5 @@ async def on_message(msg):
 async def on_ready():
     bot.add_view(ControlPanel())
     print("✅ Bot ready + Persistent Control Panel")
-
 
 bot.run(TOKEN)
