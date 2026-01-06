@@ -19,6 +19,26 @@ auto_read = True
 audio_queue = asyncio.Queue()
 is_playing = False
 
+THAI_DIGITS = {
+    "0": "ศูนย์",
+    "1": "หนึ่ง",
+    "2": "สอง",
+    "3": "สาม",
+    "4": "สี่",
+    "5": "ฮ้า",
+    "6": "หก",
+    "7": "เจ็ด",
+    "8": "แปด",
+    "9": "เก้า"
+}
+
+MATH_SYMBOLS = {
+    "+": "บวก",
+    "-": "ลบ",
+    "*": "คูณ",
+    "/": "หาร"
+}
+
 # ===== VOICE PROFILES =====
 VOICE_COLORS = {
     "female": 0x9B59B6,  # ม่วง
@@ -29,9 +49,9 @@ VOICE_COLORS = {
 
 voice_mode = "female"
 VOICE_PROFILES = {
-    "female": ("th-TH-PremwadeeNeural", "+0%", "+20Hz"),
+    "female": ("th-TH-PremwadeeNeural", "+0%", "+15Hz"),
     "drunk":  ("th-TH-PremwadeeNeural", "-25%", "-2Hz"),
-    "chip":   ("th-TH-PremwadeeNeural", "+25%", "+40Hz"),
+    "chip":   ("th-TH-PremwadeeNeural", "+25%", "+30Hz"),
     "male":   ("th-TH-NiwatNeural", "-5%", "-6Hz"),
 }
 
@@ -52,11 +72,35 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 # ===== UTILS =====
 def clean_text(text):
     text = text.strip()
+
+    # ข้ามคำสั่ง
     if text.startswith("!"):
         return None
+
+    # ถ้าเป็นเลขหรือมีเลข → แปลงให้อ่าน
+    if re.search(r"\d", text):
+        return read_numbers_funny(text)[:MAX_LEN]
+
+    # ต้องมีตัวอักษร
     if not re.search(r"[ก-๙a-zA-Z\u4e00-\u9fff]", text):
         return None
+
     return text[:MAX_LEN]
+
+
+def read_numbers_funny(text: str):
+    result = []
+
+    for ch in text:
+        if ch in THAI_DIGITS:
+            result.append(THAI_DIGITS[ch])
+        elif ch in MATH_SYMBOLS:
+            result.append(MATH_SYMBOLS[ch])
+        else:
+            result.append(ch)
+
+    return " ".join(result)
+
 
 def detect_lang(text):
     try:
