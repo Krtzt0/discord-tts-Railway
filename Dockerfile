@@ -1,21 +1,21 @@
 FROM python:3.12-slim
 
-# ติดตั้ง ffmpeg
+# ติดตั้ง ffmpeg (จำเป็น)
 RUN apt-get update \
     && apt-get install -y ffmpeg \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# ตั้ง working directory
 WORKDIR /app
 
-# คัดลอกไฟล์
+# คัดลอก requirements
 COPY requirements.txt .
 
-# ติดตั้ง Python dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+# อัปเดต pip + ติดตั้ง deps
+RUN pip install --upgrade pip \
+    && pip install --no-cache-dir -r requirements.txt
 
-# คัดลอกโค้ดทั้งหมด
+# คัดลอกโค้ด
 COPY . .
 
 # รันบอท
