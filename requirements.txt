@@ -2,3 +2,4 @@ discord.py>=2.3
 python-dotenv
 langdetect
 edge-tts
+PyNaCl
