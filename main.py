@@ -29,9 +29,9 @@ VOICE_COLORS = {
 
 voice_mode = "female"
 VOICE_PROFILES = {
-    "female": ("th-TH-PremwadeeNeural", "+20%", "+5Hz"),
+    "female": ("th-TH-PremwadeeNeural", "+20%", "+0Hz"),
     "drunk":  ("th-TH-PremwadeeNeural", "-25%", "-2Hz"),
-    "chip":   ("th-TH-PremwadeeNeural", "+40%", "+10Hz"),
+    "chip":   ("th-TH-PremwadeeNeural", "+40%", "+6Hz"),
     "male":   ("th-TH-NiwatNeural", "-5%", "-6Hz"),
 }
 
