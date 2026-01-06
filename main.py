@@ -89,51 +89,53 @@ class ControlPanel(ui.View):
     def __init__(self):
         super().__init__(timeout=None)
 
-    async def refresh(self, i: Interaction):
-        embed = panel_embed()
-        await i.message.edit(embed=embed, view=self)
+    @ui.button(
+        label="สิริ",
+        emoji="🟣",
+        style=discord.ButtonStyle.secondary,
+        custom_id="voice_female"
+    )
+    async def female(self, interaction: Interaction, button: ui.Button):
+        ...
 
-    @ui.button(label="สิริ", emoji="🟣", style=discord.ButtonStyle.secondary, custom_id="female")
-    async def female(self, i: Interaction, _):
-        global voice_mode
-        voice_mode = "female"
-        await i.response.defer()
-        await self.refresh(i)
+    @ui.button(
+        label="น้อน",
+        emoji="🐿",
+        style=discord.ButtonStyle.success,
+        custom_id="voice_chipmunk"
+    )
+    async def chip(self, interaction: Interaction, button: ui.Button):
+        ...
 
-    @ui.button(label="เมา", emoji="🥴", style=discord.ButtonStyle.primary, custom_id="drunk")
-    async def drunk(self, i: Interaction, _):
-        global voice_mode
-        voice_mode = "drunk"
-        await i.response.defer()
-        await self.refresh(i)
+    @ui.button(
+        label="เมา",
+        emoji="🥴",
+        style=discord.ButtonStyle.primary,
+        custom_id="voice_drunk"
+    )
+    async def drunk(self, interaction: Interaction, button: ui.Button):
+        ...
 
-    @ui.button(label="น้อน", emoji="🐿", style=discord.ButtonStyle.success, custom_id="chip")
-    async def chip(self, i: Interaction, _):
-        global voice_mode
-        voice_mode = "chip"
-        await i.response.defer()
-        await self.refresh(i)
+    @ui.button(
+        label="Join",
+        emoji="🔊",
+        style=discord.ButtonStyle.success,
+        row=1,
+        custom_id="vc_join"
+    )
+    async def join(self, interaction: Interaction, button: ui.Button):
+        ...
 
-    @ui.button(label="ชาย", emoji="🔵", style=discord.ButtonStyle.secondary, custom_id="male")
-    async def male(self, i: Interaction, _):
-        global voice_mode
-        voice_mode = "male"
-        await i.response.defer()
-        await self.refresh(i)
+    @ui.button(
+        label="Leave",
+        emoji="🚪",
+        style=discord.ButtonStyle.danger,
+        row=1,
+        custom_id="vc_leave"
+    )
+    async def leave(self, interaction: Interaction, button: ui.Button):
+        ...
 
-    @ui.button(label="Join", emoji="🔊", row=2)
-    async def join(self, i: Interaction, _):
-        if i.user.voice:
-            await i.user.voice.channel.connect()
-            await i.response.send_message("🔊 เข้าห้องเสียงแล้ว", ephemeral=True)
-        else:
-            await i.response.send_message("❌ คุณยังไม่อยู่ในห้องเสียง", ephemeral=True)
-
-    @ui.button(label="Leave", emoji="🚪", style=discord.ButtonStyle.danger, row=2)
-    async def leave(self, i: Interaction, _):
-        if i.guild.voice_client:
-            await i.guild.voice_client.disconnect()
-        await i.response.send_message("🚪 ออกจากห้องเสียงแล้ว", ephemeral=True)
 
 # ===== EMBED =====
 def panel_embed():
@@ -186,6 +188,7 @@ async def on_message(msg):
 @bot.event
 async def on_ready():
     bot.add_view(ControlPanel())
-    print("✅ Bot ready (Edge TTS + Panel + Voice System)")
+    print("✅ Bot ready + Persistent Control Panel")
+
 
 bot.run(TOKEN)
