@@ -1,9 +1,9 @@
 import discord
 from discord.ext import commands
-from gtts import gTTS
+import edge_tts
 from langdetect import detect
 from dotenv import load_dotenv
-import asyncio, os, re, subprocess
+import asyncio, os, re
 from discord import ui, Interaction
 
 # ===== ENV =====
@@ -49,24 +49,44 @@ def detect_lang(text):
         lang = detect(text)
     except:
         return "th"
-    return "zh-CN" if lang.startswith("zh") else lang if lang in ["th","en"] else "th"
+    if lang.startswith("zh"):
+        return "zh-CN"
+    return lang if lang in ["th", "en"] else "th"
 
-def tts(text):
-    gTTS(text=text, lang=detect_lang(text)).save("base.mp3")
+# ===== EDGE TTS =====
+VOICE_MAP = {
+    "female": {
+        "voice": "th-TH-PremwadeeNeural",
+        "rate": "0%",
+        "pitch": "+0Hz"
+    },
+    "male": {
+        "voice": "th-TH-NiwatNeural",
+        "rate": "-10%",
+        "pitch": "-2Hz"
+    },
+    "chipmunk": {
+        "voice": "th-TH-PremwadeeNeural",
+        "rate": "+20%",
+        "pitch": "+6Hz"
+    },
+    "drunk": {
+        "voice": "th-TH-PremwadeeNeural",
+        "rate": "-25%",
+        "pitch": "+0Hz"
+    }
+}
 
-    if voice_mode == "chipmunk":
-        filter_audio = "asetrate=44100*0.8,atempo=0.8"
-    elif voice_mode == "drunk":
-        filter_audio = "atempo=0.7"
-    else:
-        filter_audio = None
 
-    if filter_audio:
-        subprocess.run(["ffmpeg","-y","-i","base.mp3","-filter:a",filter_audio,"voice.mp3"])
-    else:
-        subprocess.run(["ffmpeg","-y","-i","base.mp3","voice.mp3"])
-
-    os.remove("base.mp3")
+async def tts_edge(text):
+    cfg = VOICE_MAP[voice_mode]
+    communicate = edge_tts.Communicate(
+        text=text,
+        voice=cfg["voice"],
+        rate=cfg["rate"],
+        pitch=cfg["pitch"]
+    )
+    await communicate.save("voice.mp3")
 
 async def play_queue(vc):
     global is_playing
@@ -76,10 +96,12 @@ async def play_queue(vc):
 
     while not audio_queue.empty():
         text = await audio_queue.get()
-        tts(text)
+        await tts_edge(text)
+
         vc.play(discord.FFmpegPCMAudio("voice.mp3"))
         while vc.is_playing():
             await asyncio.sleep(0.3)
+
         os.remove("voice.mp3")
 
     is_playing = False
@@ -88,9 +110,11 @@ async def play_queue(vc):
 def voice_label():
     return {
         "female": "🟣 เสียงสิริ",
+        "male": "🔵 เสียงผู้ชาย",
         "chipmunk": "🐿 เสียงน้อน",
         "drunk": "🥴 เสียงเมา"
     }[voice_mode]
+
 
 class ControlPanel(ui.View):
     def __init__(self):
@@ -109,6 +133,14 @@ class ControlPanel(ui.View):
         await i.response.defer()
         await self.update(i)
 
+@ui.button(label="ผู้ชาย", emoji="🔵", style=discord.ButtonStyle.primary, custom_id="male")
+async def male(self, i: Interaction, b: ui.Button):
+    global voice_mode
+    voice_mode = "male"
+    await i.response.defer()
+    await self.update(i)
+
+
     @ui.button(label="น้อน", emoji="🐿", style=discord.ButtonStyle.success, custom_id="chip")
     async def chip(self, i: Interaction, b: ui.Button):
         global voice_mode
@@ -122,6 +154,7 @@ class ControlPanel(ui.View):
         voice_mode = "drunk"
         await i.response.defer()
         await self.update(i)
+        
 
     @ui.button(label="Join", emoji="🔊", row=1, custom_id="join")
     async def join(self, i: Interaction, b: ui.Button):
@@ -169,6 +202,6 @@ async def on_message(msg):
 @bot.event
 async def on_ready():
     bot.add_view(ControlPanel())
-    print("✅ Bot ready + panel + drunk voice")
+    print("✅ Bot ready + Edge TTS + panel")
 
 bot.run(TOKEN)
