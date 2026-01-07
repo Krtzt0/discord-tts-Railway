@@ -19,40 +19,46 @@ auto_read = True
 audio_queue = asyncio.Queue()
 is_playing = False
 
+# ===== FUNNY DIGITS =====
 THAI_DIGITS = {
-    "0": "ศูนย์",
-    "1": "หนึ๋ง",
-    "2": "ส๋อง",
-    "3": "ส๋าม",
-    "4": "สี๋",
-    "5": "ฮ้า",
-    "6": "ห๊ก",
-    "7": "เจ๊ด",
-    "8": "แป๊ด",
-    "9": "เกา"
+    "0": "ศูนย์","1": "หนึ๋ง","2": "ส๋อง","3": "ส๋าม","4": "สี๋",
+    "5": "ฮ้า","6": "ห๊ก","7": "เจ๊ด","8": "แป๊ด","9": "เกา"
 }
-
 MATH_SYMBOLS = {
-    "+": "บวก",
-    "-": "ลบ",
-    "*": "คูณ",
-    "/": "หาร"
+    "+": "บวก", "-": "ลบ", "*": "คูณ", "/": "หาร"
 }
 
-# ===== VOICE PROFILES =====
-VOICE_COLORS = {
-    "female": 0x9B59B6,  # ม่วง
-    "drunk":  0xE67E22,  # ส้ม
-    "chip":   0x2ECC71,  # เขียว
-    "male":   0x3498DB,  # ฟ้า
-}
-
+# ===== VOICE STATE =====
 voice_mode = "female"
+
+VOICE_COLORS = {
+    "female": 0x9B59B6,
+    "drunk":  0xE67E22,
+    "chip":   0x2ECC71,
+    "male":   0x3498DB,
+}
+
 VOICE_PROFILES = {
-    "female": ("th-TH-PremwadeeNeural", "+0%", "+20Hz"),
-    "drunk":  ("th-TH-PremwadeeNeural", "-25%", "-2Hz"),
-    "chip":   ("th-TH-PremwadeeNeural", "+25%", "+30Hz"),
-    "male":   ("th-TH-NiwatNeural", "-5%", "-6Hz"),
+    "female": {
+        "th": ("th-TH-PremwadeeNeural", "+0%", "+20Hz"),
+        "zh": ("zh-CN-XiaoxiaoNeural", "+0%", "+20Hz"),
+        "en": ("en-US-JennyNeural", "+0%", "+20Hz"),
+    },
+    "drunk": {
+        "th": ("th-TH-PremwadeeNeural", "-25%", "-2Hz"),
+        "zh": ("zh-CN-XiaoxiaoNeural", "-25%", "-2Hz"),
+        "en": ("en-US-JennyNeural", "-25%", "-2Hz"),
+    },
+    "chip": {
+        "th": ("th-TH-PremwadeeNeural", "+25%", "+30Hz"),
+        "zh": ("zh-CN-XiaoxiaoNeural", "+25%", "+30Hz"),
+        "en": ("en-US-JennyNeural", "+25%", "+30Hz"),
+    },
+    "male": {
+        "th": ("th-TH-NiwatNeural", "-5%", "-6Hz"),
+        "zh": ("zh-CN-YunxiNeural", "-5%", "-6Hz"),
+        "en": ("en-US-GuyNeural", "-5%", "-6Hz"),
+    }
 }
 
 def voice_label():
@@ -70,47 +76,47 @@ intents.voice_states = True
 bot = commands.Bot(command_prefix="!", intents=intents)
 
 # ===== UTILS =====
+def read_numbers_funny(text):
+    out = []
+    for ch in text:
+        if ch in THAI_DIGITS:
+            out.append(THAI_DIGITS[ch])
+        elif ch in MATH_SYMBOLS:
+            out.append(MATH_SYMBOLS[ch])
+        else:
+            out.append(ch)
+    return " ".join(out)
+
 def clean_text(text):
     text = text.strip()
-
-    # ข้ามคำสั่ง
     if text.startswith("!"):
         return None
 
-    # ถ้าเป็นเลขหรือมีเลข → แปลงให้อ่าน
     if re.search(r"\d", text):
         return read_numbers_funny(text)[:MAX_LEN]
 
-    # ต้องมีตัวอักษร
     if not re.search(r"[ก-๙a-zA-Z\u4e00-\u9fff]", text):
         return None
 
     return text[:MAX_LEN]
-
-
-def read_numbers_funny(text: str):
-    result = []
-
-    for ch in text:
-        if ch in THAI_DIGITS:
-            result.append(THAI_DIGITS[ch])
-        elif ch in MATH_SYMBOLS:
-            result.append(MATH_SYMBOLS[ch])
-        else:
-            result.append(ch)
-
-    return " ".join(result)
-
 
 def detect_lang(text):
     try:
         lang = detect(text)
     except:
         return "th"
-    return "th" if lang not in ["en", "zh"] else lang
 
+    if lang.startswith("zh"):
+        return "zh"
+    if lang.startswith("en"):
+        return "en"
+    return "th"
+
+# ===== TTS =====
 async def tts(text):
-    voice, rate, pitch = VOICE_PROFILES[voice_mode]
+    lang = detect_lang(text)
+    voice, rate, pitch = VOICE_PROFILES[voice_mode][lang]
+
     communicate = edge_tts.Communicate(
         text=text,
         voice=voice,
@@ -130,7 +136,7 @@ async def play_queue(vc):
         await tts(text)
         vc.play(discord.FFmpegPCMAudio("voice.mp3"))
         while vc.is_playing():
-            await asyncio.sleep(0.3)
+            await asyncio.sleep(0.25)
         os.remove("voice.mp3")
 
     is_playing = False
@@ -139,41 +145,20 @@ async def play_queue(vc):
 def panel_embed(status="พร้อมใช้งาน"):
     embed = discord.Embed(
         title="🎧 SIRI VOICE CONTROL",
-        description=(
-            "ระบบอ่านแชทด้วยเสียงอัตโนมัติ\n"
-            "ควบคุมโหมดเสียงและห้องพูดผ่านปุ่มด้านล่าง 👇"
-        ),
+        description="ระบบอ่านแชทอัตโนมัติด้วยเสียง\nเลือกโหมดเสียงด้านล่าง 👇",
         color=VOICE_COLORS[voice_mode]
     )
-
     embed.add_field(
         name="🗣 โหมดเสียงปัจจุบัน",
         value=f"> **{voice_label()}**",
         inline=False
     )
-
     embed.add_field(
-        name="🎚 ตัวเลือกเสียง",
-        value=(
-            "🟣 **สิริ** — เสียงปกติ\n"
-            "🥴 **เมา** — พูดอ้อแอ้ ช้าลง\n"
-            "🐿 **น้อน** — เสียงแหลม\n"
-            "🔵 **ชาย** — เสียงผู้ชาย"
-        ),
-        inline=False
-    )
-
-    embed.add_field(
-        name="📡 สถานะระบบ",
+        name="📡 สถานะ",
         value=f"```{status}```",
         inline=False
     )
-
-    embed.set_footer(
-        text="Siri TTS • Edge-TTS • Discord Bot",
-        icon_url="https://cdn-icons-png.flaticon.com/512/4712/4712109.png"
-    )
-
+    embed.set_footer(text="Edge TTS • Discord Bot")
     return embed
 
 # ===== CONTROL PANEL =====
@@ -181,64 +166,53 @@ class ControlPanel(ui.View):
     def __init__(self):
         super().__init__(timeout=None)
 
-    async def refresh(self, interaction: Interaction, status: str):
+    async def refresh(self, interaction, status):
         await interaction.message.edit(
             embed=panel_embed(status),
             view=self
         )
 
-    @ui.button(label="สิริ", emoji="🟣", style=discord.ButtonStyle.secondary, custom_id="voice_female")
-    async def female(self, interaction: Interaction, button: ui.Button):
+    @ui.button(label="สิริ", emoji="🟣", style=discord.ButtonStyle.secondary, custom_id="v_female")
+    async def female(self, i: Interaction, _):
         global voice_mode
         voice_mode = "female"
-        await interaction.response.defer()
-        await self.refresh(interaction, "เปลี่ยนเสียงเป็น สิริ (ปกติ) 🎤")
+        await i.response.defer()
+        await self.refresh(i, "เปลี่ยนเสียงเป็น สิริ")
 
-    @ui.button(label="น้อน", emoji="🐿", style=discord.ButtonStyle.success, custom_id="voice_chip")
-    async def chip(self, interaction: Interaction, button: ui.Button):
-        global voice_mode
-        voice_mode = "chip"
-        await interaction.response.defer()
-        await self.refresh(interaction, "เปลี่ยนเสียงเป็น น้อน 🐿")
-
-    @ui.button(label="เมา", emoji="🥴", style=discord.ButtonStyle.primary, custom_id="voice_drunk")
-    async def drunk(self, interaction: Interaction, button: ui.Button):
+    @ui.button(label="เมา", emoji="🥴", style=discord.ButtonStyle.primary, custom_id="v_drunk")
+    async def drunk(self, i: Interaction, _):
         global voice_mode
         voice_mode = "drunk"
-        await interaction.response.defer()
-        await self.refresh(interaction, "เปลี่ยนเสียงเป็น สิริเมา 🥴")
+        await i.response.defer()
+        await self.refresh(i, "เปลี่ยนเสียงเป็น สิริเมา")
 
-    @ui.button(label="ชาย", emoji="🔵", style=discord.ButtonStyle.secondary, custom_id="voice_male")
-    async def male(self, interaction: Interaction, button: ui.Button):
+    @ui.button(label="น้อน", emoji="🐿", style=discord.ButtonStyle.success, custom_id="v_chip")
+    async def chip(self, i: Interaction, _):
+        global voice_mode
+        voice_mode = "chip"
+        await i.response.defer()
+        await self.refresh(i, "เปลี่ยนเสียงเป็น น้อน")
+
+    @ui.button(label="ชาย", emoji="🔵", style=discord.ButtonStyle.secondary, custom_id="v_male")
+    async def male(self, i: Interaction, _):
         global voice_mode
         voice_mode = "male"
-        await interaction.response.defer()
-        await self.refresh(interaction, "เปลี่ยนเสียงเป็น ผู้ชาย 🔵")
+        await i.response.defer()
+        await self.refresh(i, "เปลี่ยนเสียงเป็น ผู้ชาย")
 
     @ui.button(label="Join", emoji="🔊", style=discord.ButtonStyle.success, row=1, custom_id="vc_join")
-    async def join(self, interaction: Interaction, button: ui.Button):
-        if interaction.user.voice:
-            await interaction.user.voice.channel.connect()
-            await interaction.response.send_message(
-                "🔊 เข้าห้องเสียงแล้ว",
-                ephemeral=True
-            )
-            await self.refresh(interaction, "เชื่อมต่อห้องเสียงแล้ว 🔊")
+    async def join(self, i: Interaction, _):
+        if i.user.voice:
+            await i.user.voice.channel.connect()
+            await i.response.send_message("🔊 เข้าห้องเสียงแล้ว", ephemeral=True)
         else:
-            await interaction.response.send_message(
-                "❌ คุณยังไม่อยู่ในห้องเสียง",
-                ephemeral=True
-            )
+            await i.response.send_message("❌ ยังไม่อยู่ในห้องเสียง", ephemeral=True)
 
     @ui.button(label="Leave", emoji="🚪", style=discord.ButtonStyle.danger, row=1, custom_id="vc_leave")
-    async def leave(self, interaction: Interaction, button: ui.Button):
-        if interaction.guild.voice_client:
-            await interaction.guild.voice_client.disconnect()
-        await interaction.response.send_message(
-            "🚪 ออกจากห้องเสียงแล้ว",
-            ephemeral=True
-        )
-        await self.refresh(interaction, "ออกจากห้องเสียงแล้ว 🚪")
+    async def leave(self, i: Interaction, _):
+        if i.guild.voice_client:
+            await i.guild.voice_client.disconnect()
+        await i.response.send_message("🚪 ออกจากห้องเสียงแล้ว", ephemeral=True)
 
 # ===== COMMANDS =====
 @bot.command()
@@ -262,8 +236,6 @@ async def on_message(msg):
         return
     await bot.process_commands(msg)
 
-    if not auto_read:
-        return
     if msg.channel.id != allowed_text_channel_id:
         return
 
@@ -281,6 +253,6 @@ async def on_message(msg):
 @bot.event
 async def on_ready():
     bot.add_view(ControlPanel())
-    print("✅ Bot ready + Persistent Control Panel")
+    print("✅ Bot ready")
 
 bot.run(TOKEN)
